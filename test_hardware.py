@@ -1,5 +1,5 @@
 """
-Example and test scripts for the crash detection system
+Test scripts for the crash detection system
 This file can be used to test individual components
 """
 

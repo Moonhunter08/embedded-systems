@@ -23,10 +23,11 @@ class SimulatedMPU6050:
         return ax, ay, az
     
     def get_total_acceleration(self):
-        """Get total acceleration magnitude"""
+        """Get total acceleration magnitude (with gravity removed)"""
         ax, ay, az = self.get_acceleration_g()
         magnitude = math.sqrt(ax*ax + ay*ay + az*az)
-        return magnitude
+        # Remove gravity offset to get actual impact acceleration
+        return abs(magnitude - 1.0)
     
     def simulate_impact(self, severity="moderate"):
         """Simulate an impact event"""

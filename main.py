@@ -3,7 +3,7 @@ Crash and Impact Detection System for Raspberry Pi Pico 2
 Uses an accelerometer (MPU6050) to detect sudden impacts and crashes
 """
 
-from machine import Pin, I2C, UART, Timer
+from machine import Pin, I2C, UART
 import time
 import math
 
@@ -62,11 +62,12 @@ class MPU6050:
         return ax, ay, az
     
     def get_total_acceleration(self):
-        """Get total acceleration magnitude"""
+        """Get total acceleration magnitude (with gravity removed)"""
         ax, ay, az = self.get_acceleration_g()
-        # Calculate magnitude (subtract 1g to account for gravity)
+        # Calculate magnitude and subtract 1g to account for gravity
         magnitude = math.sqrt(ax*ax + ay*ay + az*az)
-        return magnitude
+        # Remove gravity offset to get actual impact acceleration
+        return abs(magnitude - 1.0)
 
 class CrashDetector:
     """Main crash detection system"""
