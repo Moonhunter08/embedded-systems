@@ -1,20 +1,23 @@
 """
 Crash and Impact Detection System for Raspberry Pi Pico 2
-Uses an accelerometer (MPU6050) to detect sudden impacts and crashes
+Uses an accelerometer (MPU6050) to detect sudden impacts
 """
 
 from machine import Pin, I2C, UART
 import time
 from accelerometer_driver import MPU6050
+from buzzer_driver import Buzzer
+from led_driver import LEDDriver
 
 # Configuration Constants
 IMPACT_THRESHOLD = 2.5  # G-force threshold for impact detection
-CRASH_THRESHOLD = 3.5   # G-force threshold for crash detection
 SAMPLE_RATE_MS = 100    # Sampling rate in milliseconds
-LED_PIN = 25            # Built-in LED on Pico
-BUZZER_PIN = 15         # Pin for buzzer/alert
-I2C_SDA_PIN = 0         # I2C data pin
-I2C_SCL_PIN = 1         # I2C clock pin
+LED_PIN = "LED"         # Built-in LED on Pico
+BUZZER_PIN = 0          # Pin for buzzer/alert
+I2C_SDA_PIN = 4         # I2C data pin
+I2C_SCL_PIN = 5         # I2C clock pin
+ALERT_DURATION_MS = 3000    # Duration of crash alert in milliseconds
+ALERT_LED_FLASH_INTERVAL_MS = 100  # LED flash interval during alert
 
 class CrashDetector:
     """Main crash detection system"""
@@ -31,20 +34,12 @@ class CrashDetector:
             print(f"Warning: Could not initialize MPU6050: {e}")
             self.sensor_available = False
         
-        # Initialize LED
-        self.led = Pin(LED_PIN, Pin.OUT)
-        self.led.value(0)
+        # Initialize peripherals
+        self.led = LEDDriver(LED_PIN)
+        self.led.off()
+        self.buzzer = Buzzer(BUZZER_PIN)
         
-        # Initialize buzzer (optional)
-        try:
-            self.buzzer = Pin(BUZZER_PIN, Pin.OUT)
-            self.buzzer.value(0)
-            self.buzzer_available = True
-        except:
-            self.buzzer_available = False
-            print("Buzzer not available on pin", BUZZER_PIN)
-        
-        # Initialize UART for serial communication (optional)
+        # Initialize UART for serial communication (not tested)
         try:
             self.uart = UART(0, baudrate=115200)
             self.uart_available = True
@@ -53,93 +48,64 @@ class CrashDetector:
             print("UART not available")
         
         # State variables
-        self.impact_count = 0
-        self.crash_count = 0
-        self.last_impact_time = 0
         self.alert_active = False
         
-    def send_message(self, message):
+    def uart_send_message(self, message):
         """Send alert message via available channels"""
-        print(message)
+        print("Sending UART Message:", message)
         if self.uart_available:
             try:
                 self.uart.write(message + '\n')
             except:
                 pass
     
-    def trigger_alert(self, alert_type, magnitude):
+    def impact_callback(self, magnitude):
         """Trigger visual and audio alerts"""
-        if alert_type == "impact":
-            self.impact_count += 1
-            self.send_message(f"IMPACT DETECTED! Magnitude: {magnitude:.2f}g | Count: {self.impact_count}")
-            # Blink LED rapidly 3 times
-            for _ in range(3):
-                self.led.value(1)
-                time.sleep_ms(100)
-                self.led.value(0)
-                time.sleep_ms(100)
+        self.uart_send_message(f"IMPACT DETECTED! Magnitude: {magnitude:.2f}g")
+        self.buzzer.buzz(frequency_hz=600)
         
-        elif alert_type == "crash":
-            self.crash_count += 1
-            self.send_message(f"CRASH DETECTED! Magnitude: {magnitude:.2f}g | Count: {self.crash_count}")
-            # Keep LED on and sound buzzer
-            self.led.value(1)
-            if self.buzzer_available:
-                # Sound buzzer in pattern
-                for _ in range(5):
-                    self.buzzer.value(1)
-                    time.sleep_ms(200)
-                    self.buzzer.value(0)
-                    time.sleep_ms(100)
-            time.sleep(2)
-            self.led.value(0)
-        
-        self.last_impact_time = time.ticks_ms()
+        # Flash LED for during alert duration
+        alert_passed = 0
+        while alert_passed < ALERT_DURATION_MS:
+            self.led.toggle()
+            time.sleep_ms(ALERT_LED_FLASH_INTERVAL_MS)
+            alert_passed += ALERT_LED_FLASH_INTERVAL_MS
+
+        self.led.off()
+        self.buzzer.stop()    
     
     def check_impact(self):
-        """Check for impact/crash events"""
+        """Check for impact events"""
         if not self.sensor_available:
             return
-        
         try:
-            # Get total acceleration
-            magnitude = self.sensor.get_total_acceleration()
-            
-            # Check for crash (severe impact)
-            if magnitude > CRASH_THRESHOLD:
-                self.trigger_alert("crash", magnitude)
-            # Check for impact (moderate impact)
-            elif magnitude > IMPACT_THRESHOLD:
-                self.trigger_alert("impact", magnitude)
-                
+            magnitude = self.sensor.get_total_acceleration() 
+            if magnitude > IMPACT_THRESHOLD:
+                self.impact_callback(magnitude)
         except Exception as e:
             print(f"Error reading sensor: {e}")
     
     def run(self):
         """Main monitoring loop"""
-        self.send_message("Crash Detection System Starting...")
-        self.send_message(f"Impact Threshold: {IMPACT_THRESHOLD}g")
-        self.send_message(f"Crash Threshold: {CRASH_THRESHOLD}g")
-        self.send_message(f"Sample Rate: {SAMPLE_RATE_MS}ms")
+        self.uart_send_message("Crash Detection System Starting...")
+        self.uart_send_message(f"Impact Threshold: {IMPACT_THRESHOLD}g")
+        self.uart_send_message(f"Sample Rate: {SAMPLE_RATE_MS}ms")
+        self.uart_send_message("System Ready - Monitoring for impacts...")
         
-        # Blink LED to indicate system ready
-        for _ in range(3):
-            self.led.value(1)
-            time.sleep_ms(200)
-            self.led.value(0)
-            time.sleep_ms(200)
-        
-        self.send_message("System Ready - Monitoring for impacts...")
-        
+        heartbeat = 0
         while True:
             try:
                 self.check_impact()
                 time.sleep_ms(SAMPLE_RATE_MS)
+                heartbeat += SAMPLE_RATE_MS
+                if heartbeat >= 1000:
+                    heartbeat = 0
+                    self.led.toggle()
+                    
             except KeyboardInterrupt:
-                self.send_message("System shutting down...")
-                self.led.value(0)
-                if self.buzzer_available:
-                    self.buzzer.value(0)
+                self.uart_send_message("System shutting down...")
+                self.led.off()
+                self.buzzer.stop
                 break
             except Exception as e:
                 print(f"Error in main loop: {e}")

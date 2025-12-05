@@ -23,7 +23,6 @@ class MPU6050:
     def _read_accel(self):
         """Read raw accelerometer data"""
         data = self.i2c.readfrom_mem(self.address, ACCEL_XOUT_H, 6)
-        # Convert to signed 16-bit values
         accel_x = self._bytes_to_int(data[0], data[1])
         accel_y = self._bytes_to_int(data[2], data[3])
         accel_z = self._bytes_to_int(data[4], data[5])
@@ -49,7 +48,5 @@ class MPU6050:
     def get_total_acceleration(self):
         """Get total acceleration magnitude (with gravity removed)"""
         ax, ay, az = self._get_acceleration_g()
-        # Calculate magnitude and subtract 1g to account for gravity
         magnitude = math.sqrt(ax*ax + ay*ay + az*az)
-        # Remove gravity offset to get actual impact acceleration
         return abs(magnitude - 1.0)
