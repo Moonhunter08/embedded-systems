@@ -11,13 +11,13 @@ from led_driver import LEDDriver
 
 # Configuration Constants
 IMPACT_THRESHOLD = 4.0  # G-force threshold for impact detection
-SAMPLE_RATE_MS = 25    # Sampling rate in milliseconds
+SAMPLE_RATE_MS = 10    # Sampling rate in milliseconds
 LED_PIN = "LED"         # Built-in LED on Pico
 BUZZER_PIN = 0          # Pin for buzzer/alert
 BUZZER_FREQ_HZ = 600  # Frequency for buzzer alert
 I2C_SDA_PIN = 4         # I2C data pin
 I2C_SCL_PIN = 5         # I2C clock pin
-ALERT_DURATION_MS = 5000    # Duration of crash alert in milliseconds
+ALERT_DURATION_MS = 4000    # Duration of crash alert in milliseconds
 ALERT_LED_FLASH_INTERVAL_MS = 100  # LED flash interval during alert
 
 class CrashDetector:
