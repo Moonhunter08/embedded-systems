@@ -1,9 +1,6 @@
 from machine import Pin, PWM
-import time
 
-buzzer = Pin(0, Pin.OUT)  # use a free GPIO pin, e.g. GP20
-
-class Buzzer:
+class Buzzer_Driver:
     """Driver for passive Buzzer
 
     Tested with keyes buzzer (red board)
@@ -20,15 +17,19 @@ class Buzzer:
         buzzer.stop()
         time.sleep(1)
     """
-    
+
     def __init__(self, pin):
-        self.pwm_pin = PWM(pin)
-        duty_cycle_50_percent = 65536 // 2
-        self.pwm_pin.duty_u16(duty_cycle_50_percent)
-        time.sleep_ms(100)
+        self.pin = Pin(pin)
+        self.pwm = None
 
     def buzz(self, frequency_hz):
-        self.pwm_pin.freq(frequency_hz)
+        # Start PWM if it's not running
+        if self.pwm is None:
+            self.pwm = PWM(self.pin)
+        self.pwm.freq(frequency_hz)
+        self.pwm.duty_u16(65536 // 2)  # 50% duty cycle
 
     def stop(self):
-        self.pwm_pin.deinit()
+        if self.pwm:
+            self.pwm.deinit()
+            self.pwm = None

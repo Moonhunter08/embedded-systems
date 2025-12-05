@@ -5,15 +5,16 @@ Uses an accelerometer (MPU6050) to detect sudden impacts
 
 from machine import Pin, I2C, UART
 import time
-from accelerometer_driver import MPU6050
-from buzzer_driver import Buzzer
+from accelerometer_driver import MPU6050_Driver
+from buzzer_driver import Buzzer_Driver
 from led_driver import LEDDriver
 
 # Configuration Constants
-IMPACT_THRESHOLD = 2.5  # G-force threshold for impact detection
-SAMPLE_RATE_MS = 100    # Sampling rate in milliseconds
+IMPACT_THRESHOLD = 1.0  # G-force threshold for impact detection
+SAMPLE_RATE_MS = 25    # Sampling rate in milliseconds
 LED_PIN = "LED"         # Built-in LED on Pico
 BUZZER_PIN = 0          # Pin for buzzer/alert
+BUZZER_FREQ_HZ = 600  # Frequency for buzzer alert
 I2C_SDA_PIN = 4         # I2C data pin
 I2C_SCL_PIN = 5         # I2C clock pin
 ALERT_DURATION_MS = 3000    # Duration of crash alert in milliseconds
@@ -27,7 +28,7 @@ class CrashDetector:
         try:
             self.i2c = I2C(0, scl=Pin(I2C_SCL_PIN), sda=Pin(I2C_SDA_PIN), freq=400000)
             time.sleep_ms(100)
-            self.sensor = MPU6050(self.i2c)
+            self.sensor = MPU6050_Driver(self.i2c)
             self.sensor_available = True
             print("MPU6050 initialized successfully")
         except Exception as e:
@@ -37,7 +38,7 @@ class CrashDetector:
         # Initialize peripherals
         self.led = LEDDriver(LED_PIN)
         self.led.off()
-        self.buzzer = Buzzer(BUZZER_PIN)
+        self.buzzer = Buzzer_Driver(BUZZER_PIN)
         
         # Initialize UART for serial communication (not tested)
         try:
@@ -62,8 +63,8 @@ class CrashDetector:
     def impact_callback(self, magnitude):
         """Trigger visual and audio alerts"""
         self.uart_send_message(f"IMPACT DETECTED! Magnitude: {magnitude:.2f}g")
-        self.buzzer.buzz(frequency_hz=600)
-        
+        self.buzzer.buzz(BUZZER_FREQ_HZ)
+
         # Flash LED for during alert duration
         alert_passed = 0
         while alert_passed < ALERT_DURATION_MS:
@@ -72,7 +73,7 @@ class CrashDetector:
             alert_passed += ALERT_LED_FLASH_INTERVAL_MS
 
         self.led.off()
-        self.buzzer.stop()    
+        self.buzzer.stop()
     
     def check_impact(self):
         """Check for impact events"""
@@ -105,7 +106,7 @@ class CrashDetector:
             except KeyboardInterrupt:
                 self.uart_send_message("System shutting down...")
                 self.led.off()
-                self.buzzer.stop
+                self.buzzer.stop()
                 break
             except Exception as e:
                 print(f"Error in main loop: {e}")

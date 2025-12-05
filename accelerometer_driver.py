@@ -7,7 +7,7 @@ PWR_MGMT_1 = 0x6B
 ACCEL_XOUT_H = 0x3B
 ACCEL_CONFIG = 0x1C
 
-class MPU6050:
+class MPU6050_Driver:
     """Driver for MPU6050 accelerometer/gyroscope"""
     
     def __init__(self, i2c, address=MPU6050_ADDR):
