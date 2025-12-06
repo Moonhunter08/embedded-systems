@@ -207,3 +207,4 @@ marimo/_lsp/
 __marimo__/
 
 pico_sdk_import.cmake
+secrets.py
