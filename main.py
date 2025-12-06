@@ -3,7 +3,7 @@ Crash and Impact Detection System for Raspberry Pi Pico 2
 Uses an accelerometer (MPU6050) to detect sudden impacts
 """
 
-from machine import Pin, I2C, UART
+from machine import Pin, I2C
 import time
 from accelerometer_driver import MPU6050_Driver
 from buzzer_driver import Buzzer_Driver
@@ -40,29 +40,12 @@ class CrashDetector:
         self.led.off()
         self.buzzer = Buzzer_Driver(BUZZER_PIN)
         
-        # Initialize UART for serial communication (not tested)
-        try:
-            self.uart = UART(0, baudrate=115200)
-            self.uart_available = True
-        except:
-            self.uart_available = False
-            print("UART not available")
-        
         # State variables
         self.alert_active = False
-        
-    def uart_send_message(self, message):
-        """Send alert message via available channels"""
-        print("Sending UART Message:", message)
-        if self.uart_available:
-            try:
-                self.uart.write(message + '\n')
-            except:
-                pass
     
     def impact_callback(self, magnitude):
         """Trigger visual and audio alerts"""
-        self.uart_send_message(f"IMPACT DETECTED! Magnitude: {magnitude:.2f}g")
+        print(f"IMPACT DETECTED! Magnitude: {magnitude:.2f}g")
         self.buzzer.buzz(BUZZER_FREQ_HZ)
 
         # Flash LED for during alert duration
@@ -88,10 +71,10 @@ class CrashDetector:
     
     def run(self):
         """Main monitoring loop"""
-        self.uart_send_message("Crash Detection System Starting...")
-        self.uart_send_message(f"Impact Threshold: {IMPACT_THRESHOLD}g")
-        self.uart_send_message(f"Sample Rate: {SAMPLE_RATE_MS}ms")
-        self.uart_send_message("System Ready - Monitoring for impacts...")
+        print("Crash Detection System Starting...")
+        print(f"Impact Threshold: {IMPACT_THRESHOLD}g")
+        print(f"Sample Rate: {SAMPLE_RATE_MS}ms")
+        print("System Ready - Monitoring for impacts...")
         
         heartbeat = 0
         while True:
@@ -104,7 +87,7 @@ class CrashDetector:
                     self.led.toggle()
                     
             except KeyboardInterrupt:
-                self.uart_send_message("System shutting down...")
+                print("System shutting down...")
                 self.led.off()
                 self.buzzer.stop()
                 break
