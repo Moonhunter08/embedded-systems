@@ -14,14 +14,14 @@ import secrets
 
 
 # Configuration Constants
-IMPACT_THRESHOLD = 4.0  # G-force threshold for impact detection
+IMPACT_THRESHOLD = 1.5  # G-force threshold for impact detection
 SAMPLE_RATE_MS = 10    # Sampling rate in milliseconds
 LED_PIN = "LED"         # Built-in LED on Pico
-BUZZER_PIN = 0          # Pin for buzzer/alert
+BUZZER_PIN = 28          # Pin for buzzer/alert
 BUZZER_FREQ_HZ = 600  # Frequency for buzzer alert
-I2C_SDA_PIN = 4         # I2C data pin
-I2C_SCL_PIN = 5         # I2C clock pin
-ALERT_DURATION_MS = 4000    # Duration of crash alert in milliseconds
+I2C_SDA_PIN = 26         # I2C data pin
+I2C_SCL_PIN = 27         # I2C clock pin
+ALERT_DURATION_MS = 1000    # Duration of crash alert in milliseconds
 ALERT_LED_FLASH_INTERVAL_MS = 100  # LED flash interval during alert
 CSV_FILE = "impact_log.csv"  # CSV file to log impacts
 
@@ -48,7 +48,7 @@ class CrashDetector:
     def __init__(self, csv_interface):
         # Initialize I2C for accelerometer
         try:
-            self.i2c = I2C(0, scl=Pin(I2C_SCL_PIN), sda=Pin(I2C_SDA_PIN), freq=400000)
+            self.i2c = I2C(1, scl=Pin(I2C_SCL_PIN), sda=Pin(I2C_SDA_PIN), freq=400000)
             time.sleep_ms(100)
             self.sensor = MPU6050_Driver(self.i2c)
             self.sensor_available = True
