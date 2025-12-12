@@ -208,3 +208,4 @@ __marimo__/
 
 pico_sdk_import.cmake
 secrets.py
+.vscode/settings.json
