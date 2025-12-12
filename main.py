@@ -31,11 +31,11 @@ def start_wifi():
     print(f"WiFi hotspot started. SSID: {secrets.WIFI_SSID}")
 
 def getTimeSinceBoot() -> str:
+    """Get time since boot in MM:SS::MSMS format"""
     ms = time.ticks_ms()
     seconds = ms // 1000
     minutes = seconds // 60
-    hours = minutes // 60
-    return f"{hours:02}:{minutes % 60:02}:{seconds % 60:02}"
+    return f"{minutes:02}:{seconds % 60:02}:{ms % 60:02}"
 
 class CrashDetector:
     def __init__(self, csv_interface):
