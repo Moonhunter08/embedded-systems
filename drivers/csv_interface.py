@@ -3,6 +3,7 @@
 class CSV_Interface:
     def __init__(self, filename):
         self.filename = filename
+        self.impact_count = 0
         
         try:
             import os
