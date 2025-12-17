@@ -1,5 +1,28 @@
 import uasyncio as asyncio
 import gc
+import utime
+
+# ================= FIREWALL CONFIG =================
+ALLOWED_PATHS = {"/", "/status", "/table_rows"}
+ALLOWED_SUBNET = "192.168.4."
+MAX_REQUESTS = 10        # max requests
+WINDOW_MS = 5000         # per 5 seconds
+
+
+def ip_allowed(peer):
+    if not peer:
+        return False
+    ip = peer[0]
+    return ip.startswith(ALLOWED_SUBNET)
+
+CLIENT_HITS = {}
+def rate_limited(ip):
+    now = utime.ticks_ms()
+    hits = CLIENT_HITS.get(ip, [])
+    hits = [t for t in hits if utime.ticks_diff(now, t) < WINDOW_MS]
+    hits.append(now)
+    CLIENT_HITS[ip] = hits
+    return len(hits) > MAX_REQUESTS
 
 class BufferedWriter:
     """Buffers small writes into larger packets for speed."""
@@ -75,12 +98,30 @@ async def stream_file(buf_writer, filename):
 async def handle_client(reader, writer, csv_interface):
     buf_writer = BufferedWriter(writer)
     try:
+        peer = writer.get_extra_info("peername")
+        ip = peer[0] if peer else "unknown"
+
+        # FIREWALL: IP FILTER
+        if not ip_allowed(peer):
+            await buf_writer.write(b"HTTP/1.1 403 Forbidden\r\n\r\n")
+            await buf_writer.flush()
+            return
+
+        # FIREWALL: RATE LIMIT
+        if rate_limited(ip):
+            await buf_writer.write(b"HTTP/1.1 429 Too Many Requests\r\n\r\n")
+            await buf_writer.flush()
+            return
+
         request_line = await reader.readline()
         if not request_line: return
         
         request_str = request_line.decode('utf-8').strip()
         parts = request_str.split(" ")
-        if len(parts) < 2: return
+        if len(parts) < 3:
+            return
+
+        method = parts[0]
         path = parts[1]
 
         # Consume headers
@@ -88,8 +129,20 @@ async def handle_client(reader, writer, csv_interface):
             header = await reader.readline()
             if header == b'\r\n' or header == b'\n' or not header: break
 
-        # --- ROUTE 1: /status (Check if we need to update) ---
-        if path == '/status':
+        # FIREWALL: METHOD FILTER
+        if method != "GET":
+            await buf_writer.write(b"HTTP/1.1 405 Method Not Allowed\r\n\r\n")
+            await buf_writer.flush()
+            return
+
+        # FIREWALL: PATH ALLOW-LIST
+        if path not in ALLOWED_PATHS:
+            await buf_writer.write(b"HTTP/1.1 403 Forbidden\r\n\r\n")
+            await buf_writer.flush()
+            return
+
+        # --- ROUTE: /status ---
+        if path == "/status":
             count = getattr(csv_interface, 'impact_count', 0)
             await buf_writer.write(b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n")
             await buf_writer.write(str(count))
@@ -134,7 +187,6 @@ async def handle_client(reader, writer, csv_interface):
                         .then(r => r.text())
                         .then(serverCount => {{
                             if (serverCount != localCount) {{
-                                console.log("New impact! Fetching rows...");
                                 fetch('/table_rows')
                                 .then(r => r.text())
                                 .then(html => {{
