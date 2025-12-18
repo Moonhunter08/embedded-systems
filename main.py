@@ -69,14 +69,15 @@ class CrashDetector:
 
         self.buzzer.buzz(BUZZER_FREQ_HZ)
 
-        alert_passed = 0
-        while alert_passed < ALERT_DURATION_MS:
-            self.led.toggle()
-            await asyncio.sleep_ms(ALERT_LED_FLASH_INTERVAL_MS)
-            alert_passed += ALERT_LED_FLASH_INTERVAL_MS
-
-        self.led.off()
-        self.buzzer.stop()
+        try:
+            alert_passed = 0
+            while alert_passed < ALERT_DURATION_MS:
+                self.led.toggle()
+                await asyncio.sleep_ms(ALERT_LED_FLASH_INTERVAL_MS)
+                alert_passed += ALERT_LED_FLASH_INTERVAL_MS
+        finally:
+            self.led.off()
+            self.buzzer.stop()
     
     async def check_impact(self):
         if not self.sensor_available:

@@ -19,7 +19,7 @@ class Buzzer_Driver:
     """
 
     def __init__(self, pin):
-        self.pin = Pin(pin)
+        self.pin = Pin(pin, Pin.OUT, value=0)
         self.pwm = None
 
     def buzz(self, frequency_hz):
@@ -31,5 +31,7 @@ class Buzzer_Driver:
 
     def stop(self):
         if self.pwm:
+            self.pwm.duty_u16(0)
             self.pwm.deinit()
             self.pwm = None
+        self.pin.init(mode=Pin.OUT, value=0)
