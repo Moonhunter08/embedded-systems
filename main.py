@@ -1,7 +1,7 @@
 from machine import Pin, I2C
 import time
 import network
-import uasyncio as asyncio
+import asyncio
 import _thread
 
 from drivers.csv_interface import CSV_Interface
