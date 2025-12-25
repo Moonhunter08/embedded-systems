@@ -1,7 +1,7 @@
 from machine import Pin, I2C
 import time
 import network
-import uasyncio as asyncio
+import asyncio
 
 from drivers.csv_interface import CSV_Interface
 from drivers.accelerometer_driver import MPU6050_Driver
