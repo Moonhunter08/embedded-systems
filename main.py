@@ -1,7 +1,8 @@
 from machine import Pin, I2C
 import time
 import network
-import uasyncio as asyncio
+import asyncio
+import _thread
 
 from drivers.csv_interface import CSV_Interface
 from drivers.accelerometer_driver import MPU6050_Driver
@@ -55,10 +56,9 @@ class CrashDetector:
         
         self.csv = csv_interface
 
-    async def impact_callback(self, magnitude):
+    def impact_callback(self, magnitude):
         magnitude = f"{magnitude:.2f}g"
         timestamp = getTimeSinceBoot()
-        print(f"IMPACT DETECTED! Magnitude: {magnitude}")
         
         self.csv.write_row([timestamp, magnitude])
         
@@ -73,29 +73,29 @@ class CrashDetector:
             alert_passed = 0
             while alert_passed < ALERT_DURATION_MS:
                 self.led.toggle()
-                await asyncio.sleep_ms(ALERT_LED_FLASH_INTERVAL_MS)
+                time.sleep_ms(ALERT_LED_FLASH_INTERVAL_MS)
                 alert_passed += ALERT_LED_FLASH_INTERVAL_MS
         finally:
             self.led.off()
             self.buzzer.stop()
     
-    async def check_impact(self):
+    def check_impact(self):
         if not self.sensor_available:
             return
         try:
             magnitude = self.sensor.get_total_acceleration() 
             if magnitude > IMPACT_THRESHOLD:
-                await self.impact_callback(magnitude)
+                self.impact_callback(magnitude)
         except Exception as e:
             print(f"Error reading sensor: {e}")
     
-    async def run_async(self):
-        print("Crash Detection System Starting...")
+    def run(self):
+        print("Crash Detection System Starting on Core 1...")
         heartbeat = 0
         while True:
             try:
-                await self.check_impact()
-                await asyncio.sleep_ms(SAMPLE_RATE_MS)
+                self.check_impact()
+                time.sleep_ms(SAMPLE_RATE_MS)
                 heartbeat += SAMPLE_RATE_MS
                 if heartbeat >= 1000:
                     heartbeat = 0
@@ -104,7 +104,7 @@ class CrashDetector:
                 break
             except Exception as e:
                 print(f"Error in main loop: {e}")
-                await asyncio.sleep(1)
+                time.sleep(1)
 
 if __name__ == "__main__":
     csv_interface = CSV_Interface(CSV_FILE)
@@ -119,5 +119,6 @@ if __name__ == "__main__":
 
     # Create task for crash detector
     asyncio.create_task(detector.run_async())
-    # Start web server
+    
+    # Start web server on the main core (Core 0)
     asyncio.run(run_server(csv_interface))
