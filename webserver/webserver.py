@@ -1,11 +1,10 @@
-import asyncio
+import uasyncio as asyncio
 import gc
 import utime
 
 # ================= FIREWALL CONFIG =================
 ALLOWED_PATHS = {"/", "/status", "/table_rows"}
 ALLOWED_SUBNET = "192.168.4."
-ALLOWED_PORTS = {80}
 MAX_REQUESTS = 10        # max requests
 WINDOW_MS = 5000         # per 5 seconds
 
@@ -125,27 +124,10 @@ async def handle_client(reader, writer, csv_interface):
         method = parts[0]
         path = parts[1]
 
-        # Consume headers and extract Host header for port checking
-        dest_port = 80  # Default HTTP port
+        # Consume headers
         while True:
             header = await reader.readline()
-            if header == b'\r\n' or header == b'\n' or not header: 
-                break
-            # Check for Host header (e.g., "Host: 192.168.4.1:8080")
-            header_str = header.decode('utf-8').strip()
-            if header_str.lower().startswith('host:'):
-                host_value = header_str[5:].strip()
-                if ':' in host_value:
-                    try:
-                        dest_port = int(host_value.split(':')[1])
-                    except:
-                        pass
-
-        # FIREWALL: PORT FILTER
-        if dest_port not in ALLOWED_PORTS:
-            await buf_writer.write(b"HTTP/1.1 403 Forbidden\r\n\r\n")
-            await buf_writer.flush()
-            return
+            if header == b'\r\n' or header == b'\n' or not header: break
 
         # FIREWALL: METHOD FILTER
         if method != "GET":
@@ -194,6 +176,7 @@ async def handle_client(reader, writer, csv_interface):
                             await buf_writer.write(line)
                 
                 # --- JAVASCRIPT FOR LIVE UPDATES ---
+                # This script replaces the tbody content instead of reloading the page
                 js_script = f"""
                 <script>
                     let localCount = {page_load_count};
@@ -233,10 +216,9 @@ async def handle_client(reader, writer, csv_interface):
 
 async def run_server(csv_interface):
     print("Starting Live-Update Web Server...")
-    port = 80
     async def serve_wrapper(reader, writer):
         await handle_client(reader, writer, csv_interface)
     
-    server = await asyncio.start_server(serve_wrapper, "0.0.0.0", port)
+    server = await asyncio.start_server(serve_wrapper, "0.0.0.0", 80)
     while True:
         await asyncio.sleep(500)
