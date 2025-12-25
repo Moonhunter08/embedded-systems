@@ -117,7 +117,7 @@ if __name__ == "__main__":
     detector = CrashDetector(csv_interface)
     start_wifi()
 
-    # Create tasks
+    # Create task for crash detector
     asyncio.create_task(detector.run_async())
     # Start web server
     asyncio.run(run_server(csv_interface))
